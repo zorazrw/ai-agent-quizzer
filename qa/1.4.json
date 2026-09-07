@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "motivation",
+      "dimension": "motivation",
+      "question": "A simpler design would put the full skill instructions directly in the system prompt instead of just the name and description. Why does progressive disclosure exist, and what problem does it solve?\n\nGive 2-3 sentences.",
+      "answer": "Rubric: A full-credit answer should say that putting all skill content in the system prompt uses a lot of context window space, and that most skills will not be needed on any given task. Progressive disclosure keeps the prompt short by only showing metadata (name and description) up front. The agent calls invoke_skill only when it decides it needs that skill, so the full instructions load on demand. Partial credit for noting that many skills would make the prompt very long, without connecting that to why on-demand loading helps.",
+      "explanation": "Students need to understand the motivation behind progressive disclosure, not just what it does. This forces them to think about context window cost and the trade-off between always-available information and on-demand loading."
+    },
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The skill catalog in the system prompt contains each skill's metadata, which is the text between the `---` markers. It does not contain the full file content. Why is the metadata the right thing to put in the catalog, rather than the full file?\n\nA. The metadata is shorter and tells the agent what the skill does, so the agent can decide whether to invoke it without reading all the instructions.\n\nB. The full file cannot be parsed at load time, so metadata is the only thing available.\n\nC. The spec requires the catalog to be empty unless the agent explicitly requests it.\n\nD. The metadata is encrypted for security reasons and is safer to expose than the full instructions.",
+      "answer": "A. The metadata (name and description) is a concise summary. It tells the agent what each skill covers so the agent can decide whether to invoke the skill. Showing the full content for every skill would defeat the purpose of progressive disclosure by loading everything into context at once.",
+      "explanation": "This checks whether students understand what metadata is for, and why splitting metadata from full content is the whole point of the two-field design."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "edge_case",
+      "question": "Two skill folders both contain a SKILL.md whose frontmatter says `name: submit-task`. What should happen, and why? What would go wrong if this case were silently ignored instead?",
+      "answer": "Rubric: A full-credit answer says that a ValueError (or similar clear error) should be raised when two skills share the same name, because the returned mapping is keyed by name. If duplicates were silently ignored, one skill would overwrite the other and the agent would never know a second skill exists, or the wrong skill would be invoked when the agent calls invoke_skill with that name. The key point is that the mapping cannot hold both, so silent handling is a data loss bug. Partial credit for saying 'raise an error' without explaining what data loss occurs.",
+      "explanation": "Duplicate name detection is an explicit requirement. This question checks whether students understand why it is required, not just that it is required."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation that load_skills might encounter, choose the correct action.\n\nSituations:\n(a) skills_path points to a path that does not exist on disk.\n(b) A child directory exists but contains no SKILL.md file.\n(c) A SKILL.md file opens with `---` but never has a closing `---` line.\n(d) The frontmatter parses as valid YAML but the `name` field is missing.\n(e) All child directories have valid, unique SKILL.md files.\n\nActions:\n(i) Raise a ValueError with a descriptive message.\n(ii) Return the completed skills mapping normally.\n(iii) Skip the directory and continue loading other skills.",
+      "answer": "(a) -> (i): The path is required to be a valid directory; a missing path cannot be recovered from inside this function.\n(b) -> (i): Every skill folder must have a SKILL.md. A folder without one is a configuration error, not something to silently skip.\n(c) -> (i): Unclosed frontmatter means the file is malformed. The parser cannot know where the metadata ends, so this is an error.\n(d) -> (i): The name field is what keys the returned mapping. Without it the skill cannot be stored or invoked by name.\n(e) -> (ii): All validation passed, so the function returns the completed mapping for the agent to use.",
+      "explanation": "This question covers the full range of failure modes in the loading pipeline. Students must distinguish between unrecoverable errors (all of which should raise) and the happy path."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "coupling",
+      "question": "The system prompt should mention skill names and descriptions only when at least one skill is loaded. What breaks if the system prompt always mentions skills, even when skills_path is None and no skills exist? Give 2 reasons.",
+      "answer": "Rubric: A full-credit answer gives two of the following points. (1) The spec explicitly states that when no skill is available, no part of the prompt should mention patch.txt or submission instructions, so always including the catalog would violate that contract and could confuse the agent with instructions it cannot act on. (2) The agent might try to call invoke_skill when no skills are registered, causing a tool error or an infinite loop trying to find a skill that does not exist. (3) Tests that check the system prompt for the absence of skill content when skills_path is None would fail. Partial credit for one valid reason.",
+      "explanation": "This tests whether students understand the coupling between the skills data and the prompt, and why conditional inclusion is not just a style choice but a behavioral requirement."
+    }
+  ],
+  "module": "1.4",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

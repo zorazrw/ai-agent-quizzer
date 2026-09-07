@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The tool schema marks `move` as required but allows its value to be `null`. Why is this better than making `move` optional (i.e., not listed under `required`)?",
+      "answer": "A. Because `strict: true` in the OpenAI tool schema does not allow optional properties. Every property must appear in `required`, but a nullable type lets the model signal \"no move\" explicitly with null instead of omitting the field.\n\nWhy the others are wrong:\nB. Making the field optional would work with `strict: false`, but the spec uses `strict: true`, which forbids omitting required fields. The schema would be invalid.\nC. Requiring the field is not about preventing the model from forgetting it entirely; it is a constraint imposed by the strict-mode schema rules.\nD. Null values are not the same as missing keys in JSON. A missing key and a null value have different semantics, and strict mode requires a consistent shape.",
+      "explanation": "Students often conflate 'optional' with 'nullable'. This question forces them to see why strict-mode schemas require every property to appear in `required`, and why null is the correct way to express 'no value'."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "A move value of `null` and a missing `move` key are two ways the model might say 'I just want to inspect this position'. How should `_simulate_move` treat each case, and why should it treat them the same way?",
+      "answer": "A full-credit answer says: both cases mean the caller wants the position without applying a move, so the implementation should treat a null move and an absent move identically, neither one is an error. Only a move value that is present and is not a string should be rejected. The payload sent to the server should simply omit the move key in both cases. Two to four sentences explaining this logic earns full credit.",
+      "explanation": "This checks whether students understand that null is a valid sentinel, not a bad argument, and that the validation logic must distinguish between 'wrong type' and 'intentionally absent'."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation that `_simulate_move` can encounter, pick the correct action.\n\nSituations:\n(a) The raw arguments string is `\"{invalid json\"`\n(b) The arguments parse to a JSON array instead of an object\n(c) The `fen` key is present but its value is the integer `42`\n(d) The `move` key is present with a valid string, but the server returns a 400 error because the move is illegal\n(e) The HTTP connection to the chess server times out entirely\n\nActions:\n(i) Return a `<chess_error>` message so the agent can try again\n(ii) Raise an exception and let the harness crash\n(iii) Silently ignore the problem and return an empty result",
+      "answer": "(a) -> (i): `json.loads` raises `JSONDecodeError`; catch it and return a chess_error so the model can correct its arguments.\n(b) -> (i): The parsed value is not a dict; return a chess_error describing that arguments must be a JSON object.\n(c) -> (i): `fen` is not a string; return a chess_error asking for a proper FEN string.\n(d) -> (i): The server rejected the position or move; catch the resulting error and return a chess_error so the agent can choose a different move.\n(e) -> (i): An `httpx.HTTPError` or similar transport failure is caught and returned as a chess_error, giving the agent a chance to retry or adjust.",
+      "explanation": "Every realistic failure in this function should produce a recoverable chess_error, never a crash and never silence. This question checks that students understand the full error surface."
+    },
+    {
+      "format": "motivation",
+      "dimension": "motivation",
+      "question": "Why does `_simulate_move` return the server's JSON directly to the agent, while `_play_move` converts the JSON into a formatted board string before returning it?\n\nPick the best explanation.\n\nA. `simulate_move` is simpler to implement, so no formatting step was added yet.\nB. A simulated position is not the live game state, so the harness should not update `self.last_state` or `self.finished`. The agent reads the raw fields like `legal_moves` and `game_over` from the JSON itself to reason about hypothetical lines.\nC. The server returns different JSON for simulate calls, so the formatting function would crash.\nD. Formatted board strings take more tokens, and simulate is called more often, so returning JSON saves context window space.",
+      "answer": "B. A simulated result is a hypothetical that the agent inspects for planning. The harness must not treat it as real game progress. By returning raw JSON, the agent gets the structured data it needs to reason about future moves, and the harness avoids updating game state it should not touch.",
+      "explanation": "This question probes why the two tools have different return paths. The key insight is that simulated results must not mutate live agent state, which is a design decision, not an accident."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "coupling",
+      "question": "`SIMULATE_MOVE_TOOL` is defined once in the tools file and then registered with the agent. The dispatcher in `execute_tool_calls` checks the tool's name as a string to route calls to `_simulate_move`. What breaks if the name in the tool schema and the name checked in the dispatcher do not match, and why is this kind of mismatch hard to catch with basic tests?",
+      "answer": "A full-credit answer covers two points. First, if the names do not match, the dispatcher will never route to `_simulate_move`. Instead it will return a chess_error saying the tool does not exist, even though the model was told it could use it. The agent will be stuck: it asks for simulate_move, gets an error, and cannot plan ahead. Second, this is hard to catch because a unit test for `_simulate_move` alone passes fine, and a unit test for the dispatcher alone might use a hard-coded string. Only an integration test that sends a real tool call through the full path will expose the mismatch.",
+      "explanation": "The tool name appears in two separate places and must match exactly. This question checks whether students see that coupling between a schema definition and a dispatch table is a real failure mode."
+    }
+  ],
+  "module": "3.3",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

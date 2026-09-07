@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quizzer Q&amp;A</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --paper: #fffdf8;
+      --ink: #1c1915;
+      --muted: #5c574e;
+      --line: #e4dfd4;
+      --accent: #2f5d50;
+      --answer: #eef6f1;
+      --why: #f4efe6;
+      --chip: #ece7dc;
+      --page-gutter: 0.6rem;
+      --page-max: 72rem;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    header {
+      position: relative;
+      padding: 0;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(900px 160px at 8% -30%, rgba(47, 93, 80, 0.16), transparent 70%),
+        radial-gradient(700px 140px at 96% 120%, rgba(196, 180, 138, 0.22), transparent 65%),
+        linear-gradient(180deg, #fbfaf6 0%, var(--paper) 100%);
+    }
+    header::before {
+      content: "";
+      display: block;
+      height: 5px;
+      background: linear-gradient(90deg, var(--accent) 0%, #5d8a72 42%, #c4b48a 100%);
+    }
+    .header-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem 1.25rem;
+      max-width: var(--page-max);
+      margin: 0 auto;
+      padding: 1.15rem var(--page-gutter) 1rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.45rem;
+      font-weight: 720;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+    .status {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+    .toolbar label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0;
+      padding: 0.32rem 0.75rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      background: var(--chip);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .toolbar label:hover {
+      border-color: var(--accent);
+      color: var(--ink);
+    }
+    .toolbar label:has(input:checked) {
+      color: var(--accent);
+      background: var(--answer);
+      border-color: #c5ddd0;
+    }
+    .toolbar input {
+      accent-color: var(--accent);
+    }
+    nav.toc {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 0.45rem 0 0;
+      background: var(--bg);
+      border-bottom: 2px solid var(--line);
+    }
+    .toc-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem;
+      max-width: var(--page-max);
+      margin: 0 auto;
+      padding: 0 var(--page-gutter);
+    }
+    .toc-tabs a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: -2px;
+      padding: 0.45rem 0.8rem 0.5rem;
+      color: var(--ink);
+      font-size: 0.92rem;
+      font-weight: 650;
+      text-decoration: none;
+      background: var(--chip);
+      border: 1px solid var(--line);
+      border-bottom: 2px solid var(--line);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+    }
+    .toc-tabs a::after {
+      content: "↓";
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .toc-tabs a:hover {
+      background: var(--paper);
+      border-color: var(--accent);
+    }
+    .toc-tabs a.is-active {
+      color: var(--accent);
+      background: var(--paper);
+      border-color: var(--accent);
+      border-bottom-color: var(--paper);
+    }
+    .toc-tabs a.is-active::after {
+      color: var(--accent);
+    }
+    main {
+      max-width: var(--page-max);
+      margin: 0 auto;
+      padding: 0.5rem var(--page-gutter) 3rem;
+    }
+    .module {
+      margin: 1.75rem 0 2.5rem;
+      scroll-margin-top: 3rem;
+    }
+    .module h2 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+    }
+    article {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.1rem 1.15rem;
+      margin: 0 0 1rem;
+    }
+    .article-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem 1rem;
+      margin-bottom: 0.65rem;
+    }
+    article.is-ok {
+      border-color: var(--accent);
+    }
+    .mark {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      user-select: none;
+      cursor: pointer;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .chip {
+      background: var(--chip);
+      border-radius: 999px;
+      padding: 0.1rem 0.55rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .question, .answer, .why {
+      white-space: pre-wrap;
+    }
+    .question { margin: 0 0 0.85rem; }
+    .block {
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      margin-top: 0.55rem;
+    }
+    .block h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .block p { margin: 0; }
+    .answer-block { background: var(--answer); }
+    .why-block { background: var(--why); }
+    .hidden { display: none !important; }
+    .error {
+      color: #8b2e2e;
+      padding: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Quizzer Q&amp;A</h1>
+      <div class="toolbar">
+        <label><input id="show-answers" type="checkbox" checked /> Show answers</label>
+        <label><input id="show-why" type="checkbox" checked /> Show why</label>
+        <label><input id="only-ok" type="checkbox" /> Only show acceptable</label>
+      </div>
+    </div>
+  </header>
+  <nav class="toc" aria-label="Jump to module">
+    <div id="toc" class="toc-tabs"></div>
+  </nav>
+  <main id="app">
+    <p class="status">Loading quizzes… If nothing appears, open this folder with a local server, e.g. <code>python -m http.server</code> from <code>quizzer/qa</code>.</p>
+  </main>
+  <script>
+    const app = document.getElementById("app");
+    const toc = document.getElementById("toc");
+    const showAnswers = document.getElementById("show-answers");
+    const showWhy = document.getElementById("show-why");
+    const onlyOk = document.getElementById("only-ok");
+    const STORE_KEY = "quizzer-qa-ok";
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function naturalName(a, b) {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    async function jsonExists(name) {
+      try {
+        const head = await fetch("./" + name, { method: "HEAD", cache: "no-store" });
+        if (head.status === 405 || head.status === 501) {
+          const get = await fetch("./" + name, { cache: "no-store" });
+          return get.ok;
+        }
+        return head.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function listJsonFiles() {
+      const files = new Set();
+      // fetch("./") returns this index.html when it exists, so directory
+      // listings never include 1.3.json. Probe N.M.json instead.
+      const probes = ["tests.json"];
+      for (let major = 1; major <= 6; major++) {
+        for (let minor = 1; minor <= 12; minor++) {
+          probes.push(major + "." + minor + ".json");
+        }
+      }
+      const found = await Promise.all(
+        probes.map(async (name) => ((await jsonExists(name)) ? name : null))
+      );
+      for (const name of found) {
+        if (name) files.add(name);
+      }
+      return [...files].sort(naturalName);
+    }
+
+    async function loadQuiz(filename) {
+      const response = await fetch("./" + filename, { cache: "no-store" });
+      if (!response.ok) throw new Error(filename + " (" + response.status + ")");
+      const data = await response.json();
+      data._file = filename;
+      data.module = data.module || filename.replace(/\.json$/i, "");
+      data.questions = Array.isArray(data.questions) ? data.questions : [];
+      return data;
+    }
+
+    function questionKey(file, index) {
+      return file + "#" + index;
+    }
+
+    function loadMarks() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+        return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveMarks(marks) {
+      localStorage.setItem(STORE_KEY, JSON.stringify(marks));
+    }
+
+    function bindMarks() {
+      const marks = loadMarks();
+      document.querySelectorAll(".js-ok").forEach((box) => {
+        box.checked = !!marks[box.dataset.key];
+        box.closest("article").classList.toggle("is-ok", box.checked);
+        box.addEventListener("change", () => {
+          const next = loadMarks();
+          if (box.checked) next[box.dataset.key] = true;
+          else delete next[box.dataset.key];
+          saveMarks(next);
+          box.closest("article").classList.toggle("is-ok", box.checked);
+          applyToggles();
+        });
+      });
+    }
+
+    function renderQuestion(item, index, file) {
+      const format = item.format || "unknown";
+      const dimension = item.dimension || "unspecified";
+      const question = escapeHtml(item.question || "").trim();
+      const answer = escapeHtml(item.answer || "").trim();
+      const why = escapeHtml(item.explanation || "").trim();
+      const key = escapeHtml(questionKey(file, index));
+      return `
+        <article>
+          <div class="article-top">
+            <div class="chips">
+              <span class="chip">Q${index}</span>
+              <span class="chip">${escapeHtml(format)}</span>
+              <span class="chip">${escapeHtml(dimension)}</span>
+            </div>
+            <label class="mark">
+              <input class="js-ok" type="checkbox" data-key="${key}" />
+              Acceptable
+            </label>
+          </div>
+          <p class="question">${question}</p>
+          ${answer ? `<div class="block answer-block js-answer"><h3>Answer</h3><p class="answer">${answer}</p></div>` : ""}
+          ${why ? `<div class="block why-block js-why"><h3>Why this question</h3><p class="why">${why}</p></div>` : ""}
+        </article>
+      `;
+    }
+
+    function renderModule(quiz) {
+      const id = "module-" + String(quiz.module).replace(/[^\w.-]+/g, "-");
+      const file = quiz._file || String(quiz.module);
+      const cards = quiz.questions.map((item, i) => renderQuestion(item, i + 1, file)).join("");
+      return {
+        id,
+        toc: `<a href="#${id}" aria-label="Jump to module ${escapeHtml(quiz.module)}">${escapeHtml(quiz.module)}</a>`,
+        html: `
+          <section class="module" id="${id}">
+            <h2>Module ${escapeHtml(quiz.module)}</h2>
+            ${cards || "<p class='status'>No questions in this file.</p>"}
+          </section>
+        `,
+      };
+    }
+
+    function applyToggles() {
+      document.querySelectorAll(".js-answer").forEach((el) => {
+        el.classList.toggle("hidden", !showAnswers.checked);
+      });
+      document.querySelectorAll(".js-why").forEach((el) => {
+        el.classList.toggle("hidden", !showWhy.checked);
+      });
+      document.querySelectorAll("article").forEach((el) => {
+        const ok = el.querySelector(".js-ok");
+        el.classList.toggle("hidden", onlyOk.checked && !(ok && ok.checked));
+      });
+      document.querySelectorAll(".module").forEach((section) => {
+        const visible = [...section.querySelectorAll("article")].some(
+          (el) => !el.classList.contains("hidden")
+        );
+        const empty = !section.querySelector("article");
+        section.classList.toggle("hidden", onlyOk.checked && !visible && !empty);
+        const link = toc.querySelector('a[href="#' + section.id + '"]');
+        if (link) link.classList.toggle("hidden", section.classList.contains("hidden"));
+      });
+    }
+
+    async function main() {
+      const names = await listJsonFiles();
+      const loaded = [];
+      const missing = [];
+      for (const name of names) {
+        try {
+          loaded.push(await loadQuiz(name));
+        } catch (err) {
+          missing.push(String(err.message || err));
+        }
+      }
+      loaded.sort((a, b) => naturalName(String(a.module), String(b.module)));
+      if (!loaded.length) {
+        app.innerHTML = `<p class="error">No quiz JSON files loaded. Start a server in this folder:<br><code>cd quizzer/qa && python -m http.server</code></p>`;
+        return;
+      }
+      const parts = loaded.map(renderModule);
+      toc.innerHTML = parts.map((part) => part.toc).join("");
+      app.innerHTML = parts.map((part) => part.html).join("");
+      bindMarks();
+      applyToggles();
+      bindJumpTabs();
+    }
+
+    function bindJumpTabs() {
+      const links = [...toc.querySelectorAll("a")];
+      if (!links.length) return;
+      const setActive = (id) => {
+        links.forEach((link) => {
+          link.classList.toggle("is-active", link.getAttribute("href") === "#" + id);
+        });
+      };
+      links.forEach((link) => {
+        link.addEventListener("click", () => {
+          setActive(link.getAttribute("href").slice(1));
+        });
+      });
+      const sections = [...document.querySelectorAll(".module")];
+      if (!("IntersectionObserver" in window) || !sections.length) {
+        setActive(sections[0] && sections[0].id);
+        return;
+      }
+      const seen = new Map();
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            seen.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+          });
+          let best = "";
+          let bestRatio = 0;
+          seen.forEach((ratio, id) => {
+            if (ratio > bestRatio) {
+              best = id;
+              bestRatio = ratio;
+            }
+          });
+          if (best) setActive(best);
+        },
+        { rootMargin: "-20% 0px -55% 0px", threshold: [0, 0.15, 0.4, 0.75, 1] }
+      );
+      sections.forEach((section) => observer.observe(section));
+      setActive(sections[0].id);
+    }
+
+    showAnswers.addEventListener("change", applyToggles);
+    showWhy.addEventListener("change", applyToggles);
+    onlyOk.addEventListener("change", applyToggles);
+    main();
+  </script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "motivation",
+      "question": "The agent stores interaction history separately from the system and task prompts, then assembles them all together in `build_prompt`. Why keep history separate rather than just appending new messages directly to a single list that already contains the system and user messages?\n\nA. So the history list can be serialized to disk without losing the system prompt.\nB. So the system and task prompts can be reconstructed cleanly each call without risking accidental mutation of standing instructions.\nC. So the language model sees the system prompt only on the first turn and then drops it.\nD. So subclasses can override `build_prompt` without calling `super()`.",
+      "answer": "B. The system and task prompts are fixed for the lifetime of the run. Keeping history in its own list means every call to `build_prompt` starts from the same clean base: system message first, user message second, then the accumulated turns. If everything lived in one flat list, code that appends to that list would risk duplicating or corrupting the standing instructions over multiple steps.",
+      "explanation": "Students often want to start with one list and keep appending. This question probes whether they understand why the fixed parts and the growing parts should be stored separately."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "The spec says `build_prompt` must be domain-agnostic, but `CodeAgent` still defines its own system and task prompts in its constructor. How do these two requirements fit together without contradiction? Explain in 2-4 sentences.",
+      "answer": "A full-credit answer should say: `build_prompt` in the base class only assembles messages using attributes (`system_prompt`, `task_prompt`, `history`) without knowing anything about coding tasks, terminals, or patches. Each subclass is responsible for setting those attributes to domain-appropriate content during its own initialization. The assembly logic therefore stays generic while the content stays specific to the domain. This separation means a new domain (say, a web-browsing agent) could reuse `build_prompt` just by setting different attribute values.",
+      "explanation": "This tests whether students see the deliberate split between the base class mechanism and the subclass content, which is the core design decision of 1.1."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "A ReAct agent calls `build_prompt` at the start of every step. Consider these situations. For each one, which action correctly describes what `build_prompt` should do?\n\nSituations:\n(a) It is the very first step: `history` is empty.\n(b) The previous step ended with a tool call and a tool result has been appended to history.\n(c) A subclass forgot to set `system_prompt` before `build_prompt` is called.\n(d) The agent has taken ten turns and history has ten assistant/tool message pairs.\n\nActions:\n(i) Return only the system and user messages (history contributes nothing yet).\n(ii) Return system, user, and all accumulated history in order.\n(iii) The method cannot produce a valid prompt; the fault lies outside `build_prompt` itself.",
+      "answer": "(a) -> (i). An empty history spreads nothing into the list, so the result is just the system message followed by the user message, which is correct for turn one.\n(b) -> (ii). The tool result is already in history, so `build_prompt` returns system + user + full history, giving the model the observation it needs.\n(c) -> (iii). `build_prompt` reads `self.system_prompt` but does not set it. If the subclass omitted that step, the prompt will be wrong or raise an error, but that is a bug in the subclass constructor, not in `build_prompt`.\n(d) -> (ii). History length does not change the assembly logic. All ten pairs are spread into the returned list so the model sees the full trajectory.",
+      "explanation": "Students need to see that `build_prompt` is stateless assembly code: it does not branch on turn number or history length, and it is not responsible for validating that subclasses did their setup correctly."
+    },
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The spec requires the system prompt for `CodeAgent` to embed a `<system_information>` block containing fields read from the environment object. Why read those values from the environment object at construction time rather than hard-coding typical values like `\"Linux\"` or fetching them fresh inside `build_prompt` on every step?\n\nA. Hard-coding would fail linting checks that forbid string literals in constructors.\nB. Reading from the environment at construction time keeps the prompt consistent across all steps and lets tests inject a fake environment without patching the OS.\nC. `build_prompt` is not allowed to access `self.environment`, so the data must be read earlier.\nD. Fetching at construction time is faster because the environment object caches the values.",
+      "answer": "B. The environment the agent is working in does not change mid-run, so reading once at construction and storing the result in `system_prompt` guarantees every prompt looks the same. It also makes the code testable: a test can pass a mock environment object with known values instead of relying on whatever OS the test happens to run on.",
+      "explanation": "This question targets a common student mistake of either hard-coding platform strings or doing live system calls inside `build_prompt`, and checks whether they understand both consistency and testability."
+    },
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "Four students each propose a different structure for the message list returned by `build_prompt`. Which structure matches the convention described in the spec?\n\nA. `[user, system, ...history]` - user message first so the task is prominent.\nB. `[system, ...history, user]` - the user message goes last to emphasize the current request.\nC. `[system, user, ...history]` - system first, then the initial user message, then all prior turns.\nD. `[...history, system, user]` - history first so the model reads it before instructions.",
+      "answer": "C. The spec states exactly one system message appears first, a user message follows before any assistant messages, and then the rest of the conversation (assistant and tool messages) comes after. Option C is the only one that satisfies all three constraints.",
+      "explanation": "The ordering of system, user, and history messages is not arbitrary: the API and the model both expect a specific role sequence. This question checks that students read and applied the ordering rules rather than guessing."
+    }
+  ],
+  "module": "1.1",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

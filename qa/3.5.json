@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "motivation",
+      "dimension": "motivation",
+      "question": "The `_invoke_skill` function returns the skill's full text content as a string directly into the conversation. Why return the entire content rather than, say, a confirmation message like \"Skill loaded successfully\"?\n\nGive 2-3 sentences.",
+      "answer": "The agent needs to actually read the skill's instructions to follow them. A confirmation message tells the agent nothing about how to search moves or call helper functions. The skill content is the strategy: without it, the agent has no concrete plan and cannot use `simulate_move` or `play_move` correctly.",
+      "explanation": "This tests whether students understand why the return value matters, not just that the function returns something."
+    },
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "When `_invoke_skill` receives a `name` argument that is not in the `skills` dictionary, what should it do?\n\nA. Raise a `KeyError` and let the harness catch it.\nB. Return an empty string so the agent continues with no content.\nC. Return a `<chess_error>` message that names the unknown skill and lists what is available.\nD. Return `None` and skip adding anything to the conversation history.",
+      "answer": "C. Return a `<chess_error>` message that names the unknown skill and lists what is available. A tagged error string keeps the observation in the conversation so the agent can read it and try a different skill name. Raising an exception or returning `None` crashes or silently breaks the loop. An empty string gives the agent no information to recover from.",
+      "explanation": "Students need to see that error handling here is agent-recoverable, not harness-level, and that the error message content matters for the agent to self-correct."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation below, which action should `_invoke_skill` take?\n\nSituations:\n(a) The `arguments` string is valid JSON but its top-level value is a list, not an object.\n(b) The `arguments` string is valid JSON, `name` is a string, and it matches a key in `skills`.\n(c) The `arguments` string is empty or entirely whitespace.\n(d) The `arguments` string contains valid JSON, `name` key is present, but its value is an integer.\n(e) The `arguments` string is not valid JSON at all (syntax error).\n\nActions:\n(i) Return the skill's full text content.\n(ii) Return a `<chess_error>` string describing the problem.\n(iii) Raise an exception and let the caller handle it.",
+      "answer": "(a) -> (ii): A list is not a valid argument object, so report the type mismatch as an error.\n(b) -> (i): This is the happy path. All checks pass, so return the content.\n(c) -> (ii): Empty input cannot be parsed into a usable object, so return an error. Treating it as `{}` and then complaining about a missing `name` also results in an error response.\n(d) -> (ii): `name` must be a string; an integer is a type mismatch, so return an error.\n(e) -> (ii): Unparseable JSON cannot yield a skill name, so return a parse error. Never raise an unhandled exception from this function.",
+      "explanation": "This covers every branch of the parsing and validation logic without referencing implementation details, and forces students to think about why exceptions should not escape."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "Two students disagree about what to do when `arguments` is `None` or an empty string.\n\nStudent A treats it the same as `{}`: parse fails gracefully, then return a `<chess_error>` saying `name` is missing.\nStudent B raises a `ValueError` immediately when the input is empty, before any JSON parsing.\n\nWhich approach fits the design of `_invoke_skill`, and why? Give 2-4 sentences.",
+      "answer": "Student A's approach fits. The function's contract is to always return a string: either skill content or a `<chess_error>` tag. Raising an exception breaks that contract and forces the harness to catch something it was not designed to handle. Treating empty input as a bad-but-parseable case and returning a descriptive error keeps the error inside the conversation where the agent can see it.",
+      "explanation": "This probes whether students understand that the error-return contract is intentional and that exceptions are the wrong tool for agent-recoverable problems."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "coupling",
+      "question": "The `skills` parameter is typed as `dict[str, dict[str, str]]`, meaning each skill is itself a dictionary. The function reads a specific key from that inner dictionary to get the content to return.\n\nWhy is it important that `_invoke_skill` reads a named field from the inner dict rather than returning the entire inner dict object? What would go wrong if the function returned the raw dict instead of its content string?\n\nGive 2-3 sentences.",
+      "answer": "The return value gets placed into the conversation as a tool observation, which must be a string the language model can read. A raw Python dict is not a string: it would either cause a type error downstream or be serialized in a Python-specific format that the model was not trained to interpret as chess strategy. Returning the content string directly ensures the agent sees readable instructions it can act on.",
+      "explanation": "This checks that students understand the interface between tool output and the conversation history, which is the whole point of returning content rather than a data structure."
+    }
+  ],
+  "module": "3.5",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

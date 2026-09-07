@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "When compacting, which messages should be summarized and which should be kept verbatim in the prompt the agent sees going forward?\n\nA. Summarize everything in history, including the original system and task messages, so the prompt is as short as possible.\n\nB. Summarize only an older prefix of the conversation history; keep the original system and task messages verbatim, and keep at least the most recent complete assistant action and its tool observations untouched.\n\nC. Summarize only the tool observation messages, since those are usually the longest; keep all assistant messages verbatim.\n\nD. Summarize everything except the very last message, regardless of whether that message is an assistant action or a tool result.",
+      "answer": "B. Summarize only the older prefix; keep system/task messages verbatim and preserve at least the latest complete assistant action along with its tool observations.\n\nThe original system and task messages define the agent's goals and constraints. If those are paraphrased, the agent may drift. The most recent action and its observations are the agent's current working state: dropping them would make the next step incoherent. Only the older middle portion is safe to compress.",
+      "explanation": "This tests whether students understand why the compaction boundary must be placed carefully, not just that compaction exists."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "edge_case",
+      "question": "Suppose the model call succeeds but the compaction response comes back as an empty string. Should the agent update its stored summary and advance the compaction pointer? Explain why or why not in 2-4 sentences.",
+      "answer": "Rubric: The student should say no, the agent must not update its state when the summary is empty. If the agent advances the pointer but has no summary to stand in for the retired history, that history is simply gone, and the agent loses information with no replacement. The correct behavior is to leave the stored summary and the compaction pointer unchanged and let the agent continue with the existing context.",
+      "explanation": "An empty summary is a quiet failure mode. Students need to see that blindly advancing the compaction pointer on any response, including an empty one, destroys history rather than compressing it."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation below, which action should compact_context take?\n\nSituations:\n(a) The compaction model call returns a well-formed summary string.\n(b) The compaction model call returns an empty string.\n(c) This is the second compaction; a summary from the first compaction already exists.\n(d) The cut point would split a tool observation away from the assistant message that made the tool call.\n(e) The model call raises a network exception.\n\nActions:\n(i) Update the stored summary and advance the compaction pointer so future prompts skip the summarized prefix.\n(ii) Leave the stored summary and compaction pointer unchanged; continue with the existing context.\n(iii) Move the cut point so it falls on an assistant message boundary before proceeding.\n(iv) Propagate or surface the error; do not silently swallow it.",
+      "answer": "(a) -> (i): A valid summary exists, so it is safe to retire the old prefix and record the new summary.\n(b) -> (ii): An empty summary offers nothing to stand in for the retired history; advancing the pointer would drop messages for no benefit.\n(c) -> (i), but fold the earlier summary into the prompt sent to the model: the earlier working memory must be included in the compaction request so the second pass does not lose what the first pass established.\n(d) -> (iii): The cut must always land on an assistant message so that no tool observation is orphaned from the call it answers.\n(e) -> (iv): A network failure is not an agent-recoverable situation within compact_context; it should surface rather than be silently ignored.",
+      "explanation": "This tests several independent correctness properties of compact_context at once: boundary selection, empty-response handling, chained compaction, and error handling."
+    },
+    {
+      "format": "motivation",
+      "dimension": "motivation",
+      "question": "Why does a ReAct agent need context compaction at all? A team member suggests just letting the full transcript grow indefinitely and relying on a large context-window model. Give two distinct reasons why compaction is still useful even with a large context window.",
+      "answer": "Any two of the following:\n1. Cost. Longer prompts mean more input tokens on every request. Token costs accumulate quickly over a long task, even if the model technically fits the context.\n2. Latency. Larger prompts take longer to process. Each action step is slower when the model must attend over a huge transcript.\n3. Signal-to-noise. Old raw output, repeated tool observations, and intermediate steps add noise. A compressed summary keeps the most decision-relevant facts front and center, which can improve the quality of subsequent actions.\n4. Hard context limits. Even large-context models have a ceiling. A task that runs long enough will eventually exceed any fixed window without compaction.",
+      "explanation": "Students who can only say 'context window limits' are missing the cost and quality arguments. This question pushes them to articulate multiple independent motivations."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "When a second compaction runs, the agent already has a summary from the first compaction covering the earliest part of the history. How should the second compaction handle that earlier summary? What goes wrong if the second compaction ignores it and only processes the messages since the first compaction?",
+      "answer": "Rubric: The student should explain that the earlier summary must be included in the prompt sent to the model for the second compaction. If it is left out, the model producing the second summary only sees the messages since the last compaction and has no knowledge of what happened before that. The resulting new summary would be missing all the context the first summary captured: prior edits, failed approaches, constraints, and so on. The agent would effectively forget everything before the first compaction boundary.",
+      "explanation": "Chained compaction is a subtle correctness issue. Students often think of each compaction as independent, but failing to carry forward earlier summaries causes progressive memory loss across a long session."
+    }
+  ],
+  "module": "2.1",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

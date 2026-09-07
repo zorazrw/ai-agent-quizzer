@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The agent encodes the model's code in base64 before passing it to the sandbox runner on the command line. Why is this necessary?\n\nA. Base64 compresses the code so it fits within command-line length limits.\nB. The sandbox cannot parse Python source unless it is encoded in base64.\nC. Passing raw source code as a shell argument risks quote characters or newlines breaking the command, so encoding makes it a single safe token.\nD. Base64 encryption prevents the model from reading back its own code.",
+      "answer": "C. Raw Python code can contain single quotes, double quotes, newlines, and special shell characters. Any of those can split or corrupt the command-line argument before the sandbox receives it. Base64 turns the code into a plain alphanumeric string, so it arrives intact as a single argument regardless of its content.",
+      "explanation": "This tests whether students understand why the encoding step exists at all, not just that it is present. The wrong options point to common but incorrect intuitions about compression, special parsing requirements, or security."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "A non-zero return code from the sandbox runner and an uncaught exception inside the model's snippet are both failures, but the spec treats them very differently. Explain the distinction. What does each one mean, and how should each be reported back to the agent?",
+      "answer": "A full-credit answer covers both points: (1) A non-zero return code means the runner process itself crashed or could not start, which is a harness-level failure. The model's code may never have executed at all. This should be reported as a chess_error so the agent knows the tool could not function. (2) An uncaught exception inside the snippet is the model's code failing at runtime. The runner still exits zero and puts the exception information in the JSON output's error field. The agent returns the whole JSON string as the observation, letting the model read its own error and try again. The key idea is that only the runner's exit code tells us whether the infrastructure worked; the snippet's success or failure is communicated inside the JSON.",
+      "explanation": "Students who conflate these two cases will either swallow real infrastructure failures or mislabel recoverable model errors as harness bugs. This question forces them to distinguish the two layers."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation that can arise during a run_python tool call, pick the correct action.\n\nSituations:\n(a) The JSON arguments string is malformed and cannot be parsed.\n(b) The sandbox runner exits with return code 1 and stderr contains a Python import error.\n(c) The model's snippet raises a ZeroDivisionError at runtime, but the runner exits with return code 0.\n(d) The arguments parse correctly and the runner exits 0, and the snippet called play_move inside the sandbox.\n(e) The 'code' key is present in the parsed arguments but its value is an integer, not a string.\n\nActions:\n(i) Return a chess_error to the model so it can correct the problem and try again.\n(ii) Return the runner's JSON output as the observation string; the model can read the error field.\n(iii) Return the runner's JSON output and then re-read the live board, update last_state and finished, and append the formatted board state to the observation.",
+      "answer": "(a) -> (i): The arguments could not be parsed at all, so report a chess_error before even calling the sandbox.\n(b) -> (i): A non-zero return code means the runner itself failed. Report the stderr or exception_info as a chess_error.\n(c) -> (ii): The runner succeeded (exit 0), so the snippet's exception is the model's problem. Return the JSON so the model sees the error field and can fix its code.\n(d) -> (iii): A successful run that may have changed the board requires re-reading the server state, updating last_state and finished, and appending the new board position so the model does not replay a committed move.\n(e) -> (i): The 'code' value is the wrong type. Report a chess_error rather than passing a non-string to the sandbox.",
+      "explanation": "This question separates the three distinct failure layers (argument parsing, runner infrastructure, snippet runtime) from the happy path, and tests whether students know that a board re-read is required after a successful run."
+    },
+    {
+      "format": "mcq",
+      "dimension": "motivation",
+      "question": "After a successful run_python call, the harness re-reads the board from the chess server and appends the current board state to the observation before returning. Why is this step needed?\n\nA. The sandbox runner always clears the board after executing a snippet, so the harness must restore it.\nB. The model's snippet could have called play_move inside the sandbox, changing the real board. Without re-reading, the model's next prompt would describe a position that no longer exists.\nC. The chess server does not send move confirmations, so the harness must poll for them after every tool call.\nD. Appending the board state compresses the conversation history so the context window does not fill up.",
+      "answer": "B. A snippet is arbitrary Python and can call play_move, which commits a move to the live game. If the harness does not re-read the server after the snippet runs, the model's next turn starts from a stale position. That can lead the model to choose a move that is already illegal or to replay a move that was already made.",
+      "explanation": "This tests the coupling between run_python and board state management. Students need to understand that the sandbox is not isolated from the game server, so the harness must treat every successful snippet as potentially having changed the game."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "A student implements run_python so that it executes the model's code directly inside the agent process using Python's exec() built-in, rather than sending it to the sandbox runner. The tool still returns the correct output in the happy path. Give two concrete reasons why this approach is wrong for a chess agent harness.",
+      "answer": "A full-credit answer gives two distinct reasons. Acceptable answers include: (1) Security: exec() in the agent process gives the model's code full access to the agent's memory, credentials, file system, and network. Code running in the sandbox is isolated. (2) State contamination: code run with exec() in the agent process shares global state with the agent. Imports, variable assignments, or side effects persist across calls and can corrupt the agent's own data structures. (3) Tool availability: the sandbox runner is pre-configured with the chess tool definitions available by name. Replicating that environment inside exec() is fragile and error-prone. (4) Crash isolation: if the snippet raises an unhandled exception or calls sys.exit(), exec() can kill or corrupt the agent process. The sandbox runner catches this and reports it cleanly.",
+      "explanation": "This question checks whether students understand why the sandbox boundary exists, not just how to call the runner script. Exec-in-process is an obvious shortcut that appears to work but breaks the security and isolation guarantees the design relies on."
+    }
+  ],
+  "module": "3.4",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

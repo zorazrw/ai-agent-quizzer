@@ -1,0 +1,130 @@
+{
+  "module": "tests",
+  "model": "rule-based",
+  "question_count": 1,
+  "questions": [
+    {
+      "format": "matching",
+      "dimension": "coupling",
+      "question": "Each public test is described in one sentence. Which assignment module does it target? Write none if the test is setup or infrastructure rather than a student TODO.\n\nFrom `test_agent.py`:\n(a) The second step's prompt holds the task, the action, and the tool result.\n(b) A 26,000 character file reaches the next prompt in truncated form.\n(c) Compaction replaces old raw context but preserves a valid recent step.\n(d) The prompt advertises each skill by name but not its full body.\n(e) A run that never finishes stops after exactly step_limit model calls.\n(f) A tool call whose arguments are not valid JSON runs nothing and does not crash.\n(g) A call to a tool the agent does not have runs nothing and does not crash.\nFrom `test_chess_agent.py`:\n(h) Play move schema is strict and registered.\n(i) Initial prompt contains board and legal moves.\n(j) Board only formatter omits legal moves without losing position.\n(k) Play move posts request and returns new state.\n(l) Rejected and malformed moves are recoverable.\nFrom `test_chess_sandbox.py`:\n(m) Chess app is playable through modal tunnel.\nFrom `test_env.py`:\n(n) A bare command string runs through the shell, via the shell=True default.\n(o) An argv list runs unshelled when shell=False is passed explicitly.\n(p) A failing command reports its exit code, with the traceback in the output.\nFrom `test_infrastructure.py`:\n(q) Runtime port uses tls and is not duplicated.\n(r) Runtime port is added when no port lists are given.\nFrom `test_smoke.py`:\n(s) Package importable.\n\nModules are ids such as 1.1, 1.2, 2.1, 3.1. Use none when the test does not cover a student TODO.",
+      "answer": "(a) -> 1.1. test_agent.py::test_prompt_carries_task_action_and_result\n(b) -> 1.3. test_agent.py::test_long_observation_is_truncated\n(c) -> 2.2. test_agent.py::test_context_compaction_summarizes_old_steps_and_keeps_recent_tool_pair\n(d) -> 1.4. test_agent.py::test_skill_catalog_lists_names_without_skill_bodies\n(e) -> 1.2. test_agent.py::test_step_limit_raises\n(f) -> 1.3. test_agent.py::test_malformed_arguments_are_not_executed\n(g) -> 1.3. test_agent.py::test_unknown_tool_is_not_executed\n(h) -> 3.1. test_chess_agent.py::test_play_move_schema_is_strict_and_registered\n(i) -> 3.1. test_chess_agent.py::test_initial_prompt_contains_board_and_legal_moves\n(j) -> 3.2. test_chess_agent.py::test_board_only_formatter_omits_legal_moves_without_losing_position\n(k) -> 3.1. test_chess_agent.py::test_play_move_posts_request_and_returns_new_state\n(l) -> 3.1. test_chess_agent.py::test_rejected_and_malformed_moves_are_recoverable\n(m) -> none. test_chess_sandbox.py::test_chess_app_is_playable_through_modal_tunnel\n(n) -> none. test_env.py::test_shell_command\n(o) -> none. test_env.py::test_argv_command\n(p) -> none. test_env.py::test_failing_command\n(q) -> none. test_infrastructure.py::test_runtime_port_uses_tls_and_is_not_duplicated\n(r) -> none. test_infrastructure.py::test_runtime_port_is_added_when_no_port_lists_are_given\n(s) -> none. test_smoke.py::test_package_importable",
+      "explanation": "Public tests are the contract for each TODO. Matching a test's behavior to a module shows whether you know what each part is supposed to change."
+    }
+  ],
+  "tests": [
+    {
+      "file": "test_agent.py",
+      "name": "test_prompt_carries_task_action_and_result",
+      "description": "The second step's prompt holds the task, the action, and the tool result.",
+      "module": "1.1"
+    },
+    {
+      "file": "test_agent.py",
+      "name": "test_long_observation_is_truncated",
+      "description": "A 26,000 character file reaches the next prompt in truncated form.",
+      "module": "1.3"
+    },
+    {
+      "file": "test_agent.py",
+      "name": "test_context_compaction_summarizes_old_steps_and_keeps_recent_tool_pair",
+      "description": "Compaction replaces old raw context but preserves a valid recent step.",
+      "module": "2.2"
+    },
+    {
+      "file": "test_agent.py",
+      "name": "test_skill_catalog_lists_names_without_skill_bodies",
+      "description": "The prompt advertises each skill by name but not its full body.",
+      "module": "1.4"
+    },
+    {
+      "file": "test_agent.py",
+      "name": "test_step_limit_raises",
+      "description": "A run that never finishes stops after exactly step_limit model calls.",
+      "module": "1.2"
+    },
+    {
+      "file": "test_agent.py",
+      "name": "test_malformed_arguments_are_not_executed",
+      "description": "A tool call whose arguments are not valid JSON runs nothing and does not crash.",
+      "module": "1.3"
+    },
+    {
+      "file": "test_agent.py",
+      "name": "test_unknown_tool_is_not_executed",
+      "description": "A call to a tool the agent does not have runs nothing and does not crash.",
+      "module": "1.3"
+    },
+    {
+      "file": "test_chess_agent.py",
+      "name": "test_play_move_schema_is_strict_and_registered",
+      "description": "Play move schema is strict and registered.",
+      "module": "3.1"
+    },
+    {
+      "file": "test_chess_agent.py",
+      "name": "test_initial_prompt_contains_board_and_legal_moves",
+      "description": "Initial prompt contains board and legal moves.",
+      "module": "3.1"
+    },
+    {
+      "file": "test_chess_agent.py",
+      "name": "test_board_only_formatter_omits_legal_moves_without_losing_position",
+      "description": "Board only formatter omits legal moves without losing position.",
+      "module": "3.2"
+    },
+    {
+      "file": "test_chess_agent.py",
+      "name": "test_play_move_posts_request_and_returns_new_state",
+      "description": "Play move posts request and returns new state.",
+      "module": "3.1"
+    },
+    {
+      "file": "test_chess_agent.py",
+      "name": "test_rejected_and_malformed_moves_are_recoverable",
+      "description": "Rejected and malformed moves are recoverable.",
+      "module": "3.1"
+    },
+    {
+      "file": "test_chess_sandbox.py",
+      "name": "test_chess_app_is_playable_through_modal_tunnel",
+      "description": "Chess app is playable through modal tunnel.",
+      "module": "none"
+    },
+    {
+      "file": "test_env.py",
+      "name": "test_shell_command",
+      "description": "A bare command string runs through the shell, via the shell=True default.",
+      "module": "none"
+    },
+    {
+      "file": "test_env.py",
+      "name": "test_argv_command",
+      "description": "An argv list runs unshelled when shell=False is passed explicitly.",
+      "module": "none"
+    },
+    {
+      "file": "test_env.py",
+      "name": "test_failing_command",
+      "description": "A failing command reports its exit code, with the traceback in the output.",
+      "module": "none"
+    },
+    {
+      "file": "test_infrastructure.py",
+      "name": "test_runtime_port_uses_tls_and_is_not_duplicated",
+      "description": "Runtime port uses tls and is not duplicated.",
+      "module": "none"
+    },
+    {
+      "file": "test_infrastructure.py",
+      "name": "test_runtime_port_is_added_when_no_port_lists_are_given",
+      "description": "Runtime port is added when no port lists are given.",
+      "module": "none"
+    },
+    {
+      "file": "test_smoke.py",
+      "name": "test_package_importable",
+      "description": "Package importable.",
+      "module": "none"
+    }
+  ]
+}

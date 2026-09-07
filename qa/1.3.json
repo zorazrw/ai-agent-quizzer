@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The agent sends a tool call whose `arguments` field contains the string `\"not json at all\"`. Which behavior is correct?\n\nA. Raise a `json.JSONDecodeError` so the harness can log it and stop the run.\nB. Skip that tool call silently and return no observation for it.\nC. Return a tool-role message whose content describes the parse error, so the agent can read it and try again.\nD. Retry parsing with a more lenient parser until a dict is produced.",
+      "answer": "C. Return a tool-role message whose content describes the parse error, so the agent can read it and try again.\n\nThe spec says malformed JSON must become a recoverable observation, not an exception. Raising (A) ends the run. Skipping silently (B) leaves the conversation with a missing observation for that tool_call_id, which confuses the LM on its next turn. Retrying parsing (D) cannot fix input that is genuinely not JSON, and it hides the problem from the agent.",
+      "explanation": "Students often want to raise exceptions on bad input. This question checks whether they understand that in a ReAct harness the agent, not the harness, should get the chance to recover from its own mistakes."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation below, choose the correct action.\n\nSituations:\n(a) The LM sends a tool call with `name` set to `\"run_script\"`, which is not a known tool.\n(b) The LM sends an `execute` call with valid JSON arguments but omits the optional `timeout` field.\n(c) The LM sends a `send_message` call with a valid `summary` string.\n(d) The LM sends an `execute` call whose `arguments` field is the JSON value `42` (a number, not an object).\n(e) The sandbox `execute` call returns successfully with a non-zero returncode.\n\nActions:\n(i) Return a tool-role observation describing an error so the agent can correct itself.\n(ii) Execute the tool normally and return a tool-role observation with the result.\n(iii) Raise an exception or stop the loop.",
+      "answer": "(a) -> (i): An unknown tool name is an agent mistake, not a harness bug. Return an error observation naming the unrecognized tool.\n(b) -> (ii): Optional parameters stay at their sandbox defaults when omitted. The call still runs normally.\n(c) -> (ii): `send_message` with a valid summary is the happy path. Execute it (mark the run finished) and return a confirmation observation.\n(d) -> (i): Arguments must be a JSON object. A bare number is valid JSON but the wrong type, so return an error observation instead of crashing.\n(e) -> (ii): A non-zero returncode is the program's output, not a harness fault. Return it in the observation so the agent can decide what to do next.",
+      "explanation": "This question separates agent-recoverable mistakes (bad tool name, wrong argument type) from normal execution results (non-zero returncode, missing optional field), which is the core design decision in this module."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "motivation",
+      "question": "The LM response can contain more than one tool call at once. Explain in 2-4 sentences why `execute_tool_calls` must return one observation message per call rather than one combined message for the whole batch.",
+      "answer": "A full-credit answer should cover: (1) Each tool call has its own `tool_call_id`, and the LM matches observations back to calls by that id. If observations are merged, the mapping breaks and the LM cannot tell which result came from which call. (2) The LM may need to act differently based on individual results. A single blended message hides per-call success or failure. (3) Many provider APIs require a tool-role message for every tool_call_id that appeared in the assistant turn, so a missing or merged observation is a protocol error.",
+      "explanation": "Students sometimes return a single concatenated result for efficiency. This question checks whether they understand the structural contract between tool calls and their observations."
+    },
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "An agent calls `execute` and the sandbox returns a result that includes an `exception_info` field alongside `output` and `returncode`. What should happen?\n\nA. Treat the exception as a harness error and stop the run.\nB. Include `exception_info` in the observation content so the agent can see it.\nC. Discard `exception_info` because the agent only needs `output` and `returncode`.\nD. Re-raise the exception from inside `execute_tool_calls`.",
+      "answer": "B. Include `exception_info` in the observation content so the agent can see it.\n\nThe sandbox ran and returned data. That data belongs to the agent, not the harness. Stopping the run (A) or re-raising (D) treats a sandbox-level event as a harness fault when the agent might be able to handle it. Discarding (C) hides information the agent needs to debug its code.",
+      "explanation": "This tests whether students understand that all sandbox output, including exception details, is just data the agent observes rather than a signal that the harness itself should react to."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "coupling",
+      "question": "The tool observation messages use `{\"role\": \"tool\", \"tool_call_id\": ..., \"content\": ...}` rather than `{\"role\": \"user\", \"content\": ...}`. Give two reasons why the role matters here.",
+      "answer": "A full-credit answer needs two distinct points. Acceptable points: (1) Provider APIs that support tool use require the `tool` role to link an observation back to the assistant turn that requested it. Using `user` breaks that link and often causes an API error. (2) The LM is trained to treat `tool` messages as factual execution results and `user` messages as human input. Mixing them up can cause the model to misinterpret who is speaking or what the content means. (3) The `tool_call_id` field only makes sense on a `tool`-role message. A `user` message has no such field in the API schema, so the id would be dropped or cause a validation error.",
+      "explanation": "Students sometimes fall back to appending a user-role message because it is simpler. This question checks whether they understand why the role and id together form a required protocol, not just a convention."
+    }
+  ],
+  "module": "1.3",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

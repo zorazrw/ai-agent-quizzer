@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The tool schema sets `\"additionalProperties\": false` and lists `\"move\"` as the only required property. Why does the schema need both of these constraints together?\n\nA. `additionalProperties: false` prevents the LM from hallucinating extra fields, and `required` guarantees `move` is always present. Together they make the schema fully strict: no missing fields and no extra fields.\n\nB. `required` alone is enough. `additionalProperties: false` is redundant because the LM will only send fields it was told about.\n\nC. `additionalProperties: false` alone is enough. If extra properties are rejected, the LM will always include the required ones.\n\nD. Both constraints exist only to satisfy the `strict: true` flag. Without that flag neither constraint would be enforced by the API.",
+      "answer": "A. `additionalProperties: false` blocks extra fields the LM might add on its own, while `required` ensures `move` cannot be silently omitted. Each constraint closes a different gap. Without `required`, the LM could send an empty object and the schema would still validate. Without `additionalProperties: false`, the LM could add fields like `piece` or `color` that the server ignores but that make the call ambiguous or harder to validate.",
+      "explanation": "Students often think one constraint implies the other. This question checks whether they understand that the two constraints are independent and each closes a different hole in the schema."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "When `_play_move` gets a `move` argument that is valid JSON and a valid string, but the server refuses the move (for example, the move is illegal in the current position), what should the function return and why? Contrast this with simply raising an exception or returning an empty string. Give 2-4 sentences.",
+      "answer": "A full-credit answer says: the function should return a string wrapped in `<chess_error>...</chess_error>` tags. This lets the harness pass the error back to the LM as a tool observation so the agent can try a different move. Raising an exception would crash the harness rather than letting the agent recover. Returning an empty string gives the agent no information and could cause it to repeat the same illegal move or stall.",
+      "explanation": "This checks whether students understand that error returns here are agent-visible observations, not program crashes. The distinction between recoverable agent errors and hard harness crashes is central to the ReAct pattern."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "The harness calls `execute_tool_calls` with a list of tool calls. Match each situation to the correct action.\n\nSituations:\n(a) The LM sends two `play_move` calls in the same batch.\n(b) The LM sends a call to a tool name that is not registered.\n(c) The `arguments` field of a `play_move` call is not valid JSON.\n(d) The HTTP POST to `/api/move` times out.\n(e) The server accepts the move and returns a game state where `game_over` is true.\n\nActions:\n(i) Return a `<chess_error>` observation linked to that call's id so the agent can recover.\n(ii) Execute the move, format the result, update internal state, and set `finished` to true.\n(iii) Execute the first move normally; return a `<chess_error>` for the second call telling the agent the position has changed.",
+      "answer": "(a) -> (iii): Only one move per turn is allowed because the position changes after each move. The first call proceeds normally and the second gets a recoverable error.\n(b) -> (i): An unknown tool name cannot be dispatched, so the agent gets an error observation to recover from.\n(c) -> (i): Malformed JSON cannot be parsed into a move, so the agent gets an error observation.\n(d) -> (i): A transport failure is caught and returned as a `<chess_error>` so the agent can retry.\n(e) -> (ii): A successful move with `game_over` true is still a valid result. The state is formatted and returned, `last_state` is updated, and `finished` is set so the loop can stop.",
+      "explanation": "This question covers the parallel-call constraint, unknown tool dispatch, and the two kinds of errors (`_play_move` errors vs transport errors), all of which are easy to conflate."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "motivation",
+      "question": "The spec says the agent should never need a separate tool to read the board: the observation from a successful `play_move` call already contains everything the agent needs. Why is that design choice useful? What would go wrong if the board state were only available through a separate read tool? Give 2-4 sentences.",
+      "answer": "A full-credit answer covers: bundling the post-move state into the move response means the agent always has an up-to-date view of the board after every action, with no extra round trip. If reading the board required a separate call, the agent would spend extra turns just observing, and there is a window between the move and the read where another move could theoretically be attempted against stale information. Keeping the state in the move response also keeps the conversation shorter and the loop simpler.",
+      "explanation": "This tests whether students understand why the tool returns state rather than just an acknowledgment, which connects the tool design to the efficiency of the ReAct loop."
+    },
+    {
+      "format": "mcq",
+      "dimension": "coupling",
+      "question": "After a successful call to the chess API, the harness updates `last_state` with the raw JSON object returned by the server, then passes that same object to `format_state` to produce the text observation sent to the LM. Why are these two things kept separate instead of just storing the formatted string?\n\nA. The raw state is stored so other parts of the agent can read structured data (like `game_over`) programmatically, while the formatted string is what the LM sees. Storing only the formatted string would make it hard to check fields like `game_over` without parsing text.\n\nB. The raw state is stored only for logging. The formatted string is what actually drives the agent, so either could be dropped without changing behavior.\n\nC. `format_state` is lossy, so the raw state is kept as a backup in case the formatted string needs to be regenerated.\n\nD. The LM cannot read JSON, so the raw state must be converted to text before being sent. Storing the raw state separately is just a convenience for debugging.",
+      "answer": "A. The raw JSON object lets the harness check structured fields like `game_over` with a simple key lookup. If only the formatted string were stored, the agent would have to parse human-readable text to decide whether the game is over, which is fragile. Keeping the two representations separate gives each consumer the form it needs.",
+      "explanation": "This checks whether students understand why structured state and human-readable observations serve different consumers in the same harness, rather than treating them as redundant."
+    }
+  ],
+  "module": "3.1",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

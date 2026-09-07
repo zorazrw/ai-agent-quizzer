@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The loop checks `steps_taken >= step_limit` at the top of each iteration, before calling the language model. A student moves this check to the bottom, after executing tool calls. What goes wrong?\n\nA. The agent raises StepLimitError one step too early, so it never reaches the limit.\nB. The agent can make one extra language model call beyond the limit before stopping.\nC. The agent stops correctly but skips saving the trajectory on the last step.\nD. Nothing goes wrong. The check location does not affect behavior.",
+      "answer": "B. The agent can make one extra language model call beyond the limit before stopping. Checking at the top means the agent refuses to start a new step once the limit is hit. Checking at the bottom means it calls the model first and only raises the error afterward, so the agent always gets at least one free step over the limit.",
+      "explanation": "Students often place limit checks after work is done rather than before. This question tests whether they understand that the guard must fire before the expensive or side-effecting action, not after."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "When the language model returns a message with no tool calls, two designs are possible.\n\nDesign A: treat the text-only reply as a signal that the task is done, set `finished = True`, and exit the loop.\nDesign B: append a user-role message telling the model it did nothing, then continue the loop.\n\nWhich design is correct for this harness? Give 2-3 sentences explaining why the other design fails.",
+      "answer": "Design B is correct. Design A is wrong because the model often produces a chain-of-thought or partial answer without calling a tool, and that does not mean the task is complete. Treating every text-only reply as task completion would let the agent exit early without ever using a tool or setting `finished` through the proper channel (the finish tool). Design B keeps the model in the loop and nudges it to actually act.",
+      "explanation": "This is a common conceptual mistake: confusing 'the model said something' with 'the task is done'. The question forces students to think about what actually signals completion in a ReAct harness."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation the run loop can encounter, pick the action the agent should take.\n\nSituations:\n(a) The language model returns a message with two tool calls in it.\n(b) The language model returns a message with no tool calls and no finish signal.\n(c) The agent has already taken steps equal to the step limit and the loop condition is evaluated again.\n(d) A tool call is executed and its result includes a finish signal (i.e., `Agent.finished` becomes True).\n(e) The language model call itself raises an unexpected network exception.\n\nActions:\n(i) Append the assistant message to history, append a nudge message to history, and continue the loop.\n(ii) Execute all tool calls, append observations to history, and let the loop condition stop iteration naturally.\n(iii) Raise StepLimitError immediately without calling the model.\n(iv) Propagate the exception upward; do not silently swallow it.",
+      "answer": "(a) -> (ii): The spec says execute the tool calls produced by the model. All of them should be executed and their observations recorded before the next step.\n(b) -> (i): No tool call means nothing happened. The agent appends a nudge so the model tries again on the next iteration.\n(c) -> (iii): The step limit check fires before the model is called, so the agent raises StepLimitError without making another LM call.\n(d) -> (ii): The loop condition checks `finished` at the top of the next iteration. The current step completes normally; the flag causes the loop to exit on re-evaluation.\n(e) -> (iv): A network error is not an agent-recoverable situation. The run method should let it propagate rather than swallowing it.",
+      "explanation": "Students need to distinguish several different exit and continuation paths in the loop. This question makes them map concrete situations to concrete behaviors rather than describing the loop abstractly."
+    },
+    {
+      "format": "motivation",
+      "dimension": "motivation",
+      "question": "The assistant message from the language model is appended to `self.history` before the tool calls are executed. Why does this ordering matter? What would break if you appended it after executing the tool calls instead?",
+      "answer": "The history is the conversation that gets sent to the model on the next call. The assistant message must appear before the tool result messages because the tool results are responses to that assistant message. If the assistant message were appended after the tool results, the conversation would be out of order: the model would see observations before it sees the action that produced them. Most providers enforce role ordering and will reject or misinterpret a malformed sequence like that. The correct order is: assistant message (with tool calls), then tool result messages.",
+      "explanation": "History ordering is a subtle but critical correctness constraint. Students who think of history as a log rather than a structured conversation may not realize the order matters to the model provider."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "coupling",
+      "question": "`Agent.finished` is a flag that the run loop checks on every iteration. The loop itself never sets this flag directly. Why is that split a good design? What would break if the run loop set `finished = True` itself based on, say, detecting a keyword in the model's reply?",
+      "answer": "Keeping `finished` out of the run loop means the loop stays domain-agnostic. It does not need to know what task completion looks like. That knowledge lives in the tool that signals finishing (or a subclass), which is the right place for task-specific logic. If the loop inspected the model's text for a keyword, it would need to be updated every time the task or finish condition changes. It would also be fragile: the model might use the keyword incidentally without actually finishing. Letting a dedicated tool or subclass set the flag keeps the loop simple and reusable.",
+      "explanation": "This tests whether students understand why the run loop is intentionally generic and why separation of concerns matters here, not just that the flag exists."
+    }
+  ],
+  "module": "1.2",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}

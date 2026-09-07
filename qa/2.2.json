@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "format": "mcq",
+      "dimension": "design",
+      "question": "The agent loop calls `maybe_compact_context()` before requesting each new action from the model. Why must the call happen at that point, rather than after receiving the model's reply?\n\nA. Compaction must happen after each tool observation is appended, so the summary includes the latest tool result before the next prompt is built.\nB. The prompt that gets sent to the model is built right after this call, so compacting first means the model sees a shorter context on that very request.\nC. `maybe_compact_context()` can only run when the conversation history has an even number of messages, which is guaranteed before a request but not after.\nD. Compacting after the reply would accidentally overwrite the model's last message before it is saved to `api_responses`.",
+      "answer": "B. The prompt is built immediately after this call, so compacting first means the shorter context is what actually gets sent. Compacting after the reply would still leave the current request using the full, long context, defeating the purpose of the threshold check.",
+      "explanation": "Students often place the call in a plausible-sounding spot without thinking about when the prompt is actually assembled. This question forces them to reason about ordering."
+    },
+    {
+      "format": "mcq",
+      "dimension": "motivation",
+      "question": "Why does the loop call `maybe_compact_context()` on every iteration rather than, say, only on the first iteration or only when the agent explicitly decides it needs to compact?\n\nA. Because the model cannot be trusted to decide when its context is too long, so the harness must always compact before the model sees anything.\nB. Because each iteration appends new messages, so the context can cross the threshold at any step, and the check must happen before each request to catch it.\nC. Because compaction is cheap and idempotent, so calling it repeatedly has no cost and is just a safety measure.\nD. Because `maybe_compact_context()` is the only place where tool observations are counted toward the token estimate.",
+      "answer": "B. New messages are added on every iteration, so the context length grows continuously. Checking once is not enough because the threshold could be crossed on any step, not just the first.",
+      "explanation": "This tests whether students understand that the guard belongs in the loop body because the triggering condition (context size) changes on every iteration."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "design",
+      "question": "A student places the `maybe_compact_context()` call inside the branch that handles a successful tool result, so it only runs after a tool has been executed. Describe two situations where this placement would fail to compact the context even though the context is long enough to cross the threshold.",
+      "answer": "Full credit for any two of the following: (1) The model returns a text-only reply with no tool call. No tool is executed, so the branch is never entered and compaction is skipped even if the context is huge. (2) The very first action request in a long task has already exceeded the threshold before any tool runs, so the first prompt goes out uncompacted. (3) If the agent takes several reasoning steps in a row that do not produce tool calls, the context can grow across many iterations without ever triggering the branch. The core issue is that the threshold can be crossed at any step, not only after tool use.",
+      "explanation": "This checks that students understand the call belongs unconditionally in the main loop, not gated behind a specific outcome."
+    },
+    {
+      "format": "matching",
+      "dimension": "edge_case",
+      "question": "For each situation, which action should the loop take regarding compaction?\n\nSituations:\n(a) The token estimate is below the configured threshold at the start of an iteration.\n(b) The token estimate is above the threshold, and `maybe_compact_context()` successfully compacts the history.\n(c) `maybe_compact_context()` is called but the threshold is set to 0 (compaction disabled).\n(d) The token estimate is above the threshold, but the compacted summary is longer than the current context.\n\nActions:\n(i) Skip compaction and proceed to build the prompt with the current history.\n(ii) Compact the history, then build the prompt with the reduced context.\n(iii) Leave history unchanged and proceed (either threshold not met or compaction is disabled).",
+      "answer": "(a) -> (iii): The threshold is not crossed, so `maybe_compact_context()` does nothing and the loop continues normally. (b) -> (ii): The threshold was crossed and compaction succeeded, so the prompt is built from the shorter history. (c) -> (iii): A threshold of 0 means compaction is turned off, so `maybe_compact_context()` skips the work and the loop proceeds with the full history. (d) -> (iii): A well-behaved implementation should not replace the history with a longer summary. The original context should be kept if the summary does not actually reduce length.",
+      "explanation": "These cases probe whether students know that `maybe_compact_context()` is a conditional guard, not an unconditional rewrite, and that a threshold of 0 disables the feature."
+    },
+    {
+      "format": "short_answer",
+      "dimension": "coupling",
+      "question": "`maybe_compact_context()` is defined on the shared `Agent` base class and is called from the shared loop. What does this placement assume about the compacted history, specifically about what the next call to `build_prompt` will do with it? Why would it be wrong to compact inside a provider-specific subclass method instead?",
+      "answer": "The placement assumes that whatever `compact_context` stored in the agent's shared history fields is exactly what `build_prompt` reads to construct the next prompt. Both methods operate on the same shared state, so a compaction done in the base class is automatically reflected the next time any subclass calls `build_prompt`. Compacting inside a provider-specific method would be wrong because (1) other subclasses would never compact, creating inconsistent behavior, and (2) it would tie a domain-agnostic concern (managing context length) to a provider-specific detail, breaking the separation of responsibilities.",
+      "explanation": "This question checks that students understand why shared state and shared loop placement are necessary for compaction to work across all subclasses."
+    }
+  ],
+  "module": "2.2",
+  "model": "claude-sonnet-4-6",
+  "question_count": 5
+}
