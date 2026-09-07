@@ -1,0 +1,28 @@
+# Secrets
+.env
+!.env.example
+
+# Virtualenvs and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Nested assignment checkouts (keep source files, drop local metadata)
+**/.venv/
+**/.env
+!**/.env.example
+**/.pytest_cache/
+**/.private/
+**/.git/
+
+# OS
+.DS_Store
