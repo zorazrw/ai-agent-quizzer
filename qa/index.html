@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quizzer Q&amp;A</title>
+  <title>Quiz Q&amp;A</title>
   <style>
     :root {
       --bg: #f6f4ef;
@@ -227,7 +227,7 @@
 <body>
   <header>
     <div class="header-inner">
-      <h1>Quizzer Q&amp;A</h1>
+      <h1>Quiz Q&amp;A</h1>
       <div class="toolbar">
         <label><input id="show-answers" type="checkbox" checked /> Show answers</label>
         <label><input id="show-why" type="checkbox" checked /> Show why</label>
@@ -239,7 +239,7 @@
     <div id="toc" class="toc-tabs"></div>
   </nav>
   <main id="app">
-    <p class="status">Loading quizzes… If nothing appears, open this folder with a local server, e.g. <code>python -m http.server</code> from <code>quizzer/qa</code>.</p>
+    <p class="status">Loading quizzes… If nothing appears, open this folder with a local server, e.g. <code>python -m http.server</code> from <code>qa</code>.</p>
   </main>
   <script>
     const app = document.getElementById("app");
@@ -273,21 +273,62 @@
       }
     }
 
-    async function listJsonFiles() {
-      const files = new Set();
-      // fetch("./") returns this index.html when it exists, so directory
-      // listings never include 1.3.json. Probe N.M.json instead.
-      const probes = ["tests.json"];
-      for (let major = 1; major <= 6; major++) {
-        for (let minor = 1; minor <= 12; minor++) {
-          probes.push(major + "." + minor + ".json");
+    function jsonNamesFromHtml(html, prefix) {
+      const names = [];
+      const re = /href=["']([^"'?#]+)["']/gi;
+      let match;
+      while ((match = re.exec(html))) {
+        const leaf = decodeURIComponent(match[1]).replace(/\\/g, "/").split("/").pop();
+        if (leaf && /^[^.][^/]*\.json$/i.test(leaf)) {
+          names.push(prefix + leaf);
+        }
+      }
+      return names;
+    }
+
+    async function listFromDirectory(dir) {
+      try {
+        const response = await fetch(dir, { cache: "no-store" });
+        if (!response.ok) return [];
+        const html = await response.text();
+        if (/Quizzer Q&amp;A|Quizzer Q&A/i.test(html) && !/Directory listing/i.test(html)) {
+          return [];
+        }
+        const prefix = dir.replace(/^\.\//, "").replace(/[^/]$/, "$&/");
+        return jsonNamesFromHtml(html, prefix === "/" ? "" : prefix);
+      } catch {
+        return [];
+      }
+    }
+
+    async function probeKnownJsonNames() {
+      const probes = [];
+      for (const dir of ["json/", ""]) {
+        probes.push(dir + "tests.json");
+        for (let major = 1; major <= 6; major++) {
+          for (let minor = 1; minor <= 12; minor++) {
+            probes.push(dir + major + "." + minor + ".json");
+          }
         }
       }
       const found = await Promise.all(
         probes.map(async (name) => ((await jsonExists(name)) ? name : null))
       );
-      for (const name of found) {
-        if (name) files.add(name);
+      return found.filter(Boolean);
+    }
+
+    async function listJsonFiles() {
+      const files = new Set();
+      // index.html hides this folder's listing; json/ has no index so the
+      // server returns every *.json there. Also accept files next to index.html.
+      for (const name of [
+        ...(await listFromDirectory("./json/")),
+        ...(await listFromDirectory("./")),
+      ]) {
+        files.add(name);
+      }
+      if (!files.size) {
+        for (const name of await probeKnownJsonNames()) files.add(name);
       }
       return [...files].sort(naturalName);
     }
@@ -362,16 +403,27 @@
       `;
     }
 
+    function fileLabel(quiz) {
+      return String(quiz._file || quiz.module)
+        .replace(/^json\//, "")
+        .replace(/\.json$/i, "");
+    }
+
     function renderModule(quiz) {
-      const id = "module-" + String(quiz.module).replace(/[^\w.-]+/g, "-");
       const file = quiz._file || String(quiz.module);
+      const label = fileLabel(quiz);
+      const id = "module-" + label.replace(/[^\w.-]+/g, "-");
       const cards = quiz.questions.map((item, i) => renderQuestion(item, i + 1, file)).join("");
+      const heading =
+        label === String(quiz.module)
+          ? `Module ${escapeHtml(quiz.module)}`
+          : `Module ${escapeHtml(quiz.module)} · ${escapeHtml(label)}`;
       return {
         id,
-        toc: `<a href="#${id}" aria-label="Jump to module ${escapeHtml(quiz.module)}">${escapeHtml(quiz.module)}</a>`,
+        toc: `<a href="#${id}" aria-label="Jump to ${escapeHtml(label)}">${escapeHtml(label)}</a>`,
         html: `
           <section class="module" id="${id}">
-            <h2>Module ${escapeHtml(quiz.module)}</h2>
+            <h2>${heading}</h2>
             ${cards || "<p class='status'>No questions in this file.</p>"}
           </section>
         `,
@@ -411,9 +463,9 @@
           missing.push(String(err.message || err));
         }
       }
-      loaded.sort((a, b) => naturalName(String(a.module), String(b.module)));
+      loaded.sort((a, b) => naturalName(fileLabel(a), fileLabel(b)));
       if (!loaded.length) {
-        app.innerHTML = `<p class="error">No quiz JSON files loaded. Start a server in this folder:<br><code>cd quizzer/qa && python -m http.server</code></p>`;
+        app.innerHTML = `<p class="error">No quiz JSON files loaded. Put <code>*.json</code> in <code>qa/json/</code> (or this folder) and start a server:<br><code>cd qa && python -m http.server</code></p>`;
         return;
       }
       const parts = loaded.map(renderModule);

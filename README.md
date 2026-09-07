@@ -19,7 +19,7 @@ cp .env.example .env   # then put a real ANTHROPIC_API_KEY in .env
 
 ```bash
 uv run quizzer run 1.1
-uv run quizzer run 1.1 --questions 3 --format json -o quizzer/qa/1.1.json
+uv run quizzer run 1.1 --questions 3 --format json -o qa/json/1.1.json
 ```
 
 Point at any other pair of trees with `--finished` and `--original`.
@@ -146,21 +146,21 @@ Rule-based; no API key. Reads `tests/` and asks which assignment module each tes
 
 ```bash
 uv run quizzer testing
-uv run quizzer testing --format json -o quizzer/qa/tests.json
+uv run quizzer testing --format json -o qa/json/tests.json
 ```
 
 Default tests dir is `<finished>/tests`. Override with `--tests PATH`.
 
 ## Read saved quizzes
 
-JSON dumps in `quizzer/qa/` (for example `1.1.json`) can be read in the browser:
+JSON dumps in `qa/json/` (for example `1.1.json`, `1.1_jiarui.json`) can be read in the browser:
 
 ```bash
 cd qa
 python -m http.server
 ```
 
-Then open http://127.0.0.1:8000/ — `index.html` lists every `*.json` in that folder.
+Then open http://127.0.0.1:8000/ — `index.html` lists every `*.json` in `json/`.
 
 ## Tests
 
